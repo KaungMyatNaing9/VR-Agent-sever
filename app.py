@@ -9,6 +9,9 @@ from pydantic import ValidationError
 import openai
 from dotenv import load_dotenv
 
+# Allow OAuth2 for HTTP (for local development only)
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 # Local imports
 from schemas import ChatRequest, ChatResponse, AuthResponse
 from function_specs import FUNCTION_SPECS
@@ -41,7 +44,7 @@ if client_secrets_file and not os.path.exists(client_secrets_file):
 # Set OpenAI API key
 openai_api_key = os.getenv('OPENAI_API_KEY')
 if openai_api_key:
-    openai.api_key = openai_api_key
+    client = openai.OpenAI(api_key=openai_api_key)
 else:
     logger.error("OPENAI_API_KEY is not set. Chat functionality will not work.")
 
@@ -184,15 +187,15 @@ async def chat_endpoint(request: ChatRequest):
         
         # Call OpenAI API with function definitions if user is authenticated
         if creds_json:
-            completion = openai.chat.completions.create(
-                model="gpt-4o-mini",  # or your preferred model
+            completion = client.chat.completions.create(
+                model="gpt-4",  # or your preferred model
                 messages=messages,
                 tools=[{"type": "function", "function": func} for func in FUNCTION_SPECS],
                 tool_choice="auto"
             )
         else:
-            completion = openai.chat.completions.create(
-                model="gpt-4o-mini",  # or your preferred model
+            completion = client.chat.completions.create(
+                model="gpt-4",  # or your preferred model
                 messages=messages
             )
         
@@ -232,8 +235,8 @@ async def chat_endpoint(request: ChatRequest):
                 })
                 
                 # Get a follow-up response from the model
-                second_completion = openai.chat.completions.create(
-                    model="gpt-4o-mini",  # or your preferred model
+                second_completion = client.chat.completions.create(
+                    model="gpt-4",  # or your preferred model
                     messages=messages
                 )
                 
