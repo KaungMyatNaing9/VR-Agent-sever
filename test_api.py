@@ -1,10 +1,6 @@
 import requests
 import json
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Configuration
 API_BASE_URL = "http://localhost:8000"  # Update with your actual API URL

@@ -2,10 +2,16 @@ import os
 import json
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
 import logging
 from typing import Tuple, Optional
+import pathlib
 
 logger = logging.getLogger(__name__)
+
+# Create a credentials directory if it doesn't exist
+CREDS_DIR = pathlib.Path("credentials")
+CREDS_DIR.mkdir(exist_ok=True)
 
 def create_oauth_flow(scopes: list = None) -> Flow:
     """
@@ -70,7 +76,7 @@ def exchange_code_for_token(flow: Flow, authorization_response: str) -> Credenti
 def load_user_creds(user_id: str) -> Optional[str]:
     """
     Load a user's Google OAuth credentials from storage.
-    In a production system, this would load from a secure database.
+    In this implementation, we store credentials in files.
     
     Args:
         user_id: User identifier
@@ -78,18 +84,33 @@ def load_user_creds(user_id: str) -> Optional[str]:
     Returns:
         Credentials as JSON string or None if not found
     """
-    # This is a placeholder. In a real system, you would:
-    # 1. Look up the user in your database
-    # 2. Retrieve their stored credentials
-    # 3. Check if the credentials are expired and refresh if needed
+    creds_file = CREDS_DIR / f"{user_id}.json"
+    if not creds_file.exists():
+        logger.info(f"No credentials found for user {user_id}")
+        return None
     
-    # For demo purposes, we're returning None to indicate no credentials found
-    return None
+    try:
+        with open(creds_file, "r") as f:
+            creds_json = f.read()
+            
+        # Try to refresh token if needed
+        creds = Credentials.from_authorized_user_info(json.loads(creds_json))
+        
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            # Update the stored credentials
+            store_user_creds(user_id, creds.to_json())
+            return creds.to_json()
+            
+        return creds_json
+    except Exception as e:
+        logger.error(f"Error loading credentials for user {user_id}: {e}")
+        return None
 
 def store_user_creds(user_id: str, creds_json: str) -> bool:
     """
     Store a user's Google OAuth credentials.
-    In a production system, this would save to a secure database.
+    In this implementation, we store credentials in files.
     
     Args:
         user_id: User identifier
@@ -98,13 +119,15 @@ def store_user_creds(user_id: str, creds_json: str) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    # This is a placeholder. In a real system, you would:
-    # 1. Look up the user in your database
-    # 2. Store their credentials securely
-    # 3. Set appropriate expiration or refresh mechanics
-    
     try:
-        # Simulate successful storage
+        # Sanitize user_id to prevent directory traversal attacks
+        user_id = user_id.replace('/', '_').replace('\\', '_')
+        
+        creds_file = CREDS_DIR / f"{user_id}.json"
+        with open(creds_file, "w") as f:
+            f.write(creds_json)
+        
+        logger.info(f"Credentials for user {user_id} saved successfully")
         return True
     except Exception as e:
         logger.error(f"Failed to store credentials for user {user_id}: {e}")

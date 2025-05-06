@@ -29,10 +29,21 @@ load_dotenv()
 required_env_vars = ['OPENAI_API_KEY', 'GOOGLE_CLIENT_SECRETS', 'GOOGLE_OAUTH_REDIRECT_URI']
 missing_vars = [var for var in required_env_vars if not os.getenv(var)]
 if missing_vars:
-    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+    logger.warning(f"Missing required environment variables: {', '.join(missing_vars)}")
+    logger.warning("Some functionality may be limited")
+
+# Check if client_secret.json exists
+client_secrets_file = os.getenv('GOOGLE_CLIENT_SECRETS')
+if client_secrets_file and not os.path.exists(client_secrets_file):
+    logger.warning(f"Client secrets file not found at: {client_secrets_file}")
+    logger.warning("Google Calendar integration will not work until the file is available")
 
 # Set OpenAI API key
-openai.api_key = os.getenv('OPENAI_API_KEY')
+openai_api_key = os.getenv('OPENAI_API_KEY')
+if openai_api_key:
+    openai.api_key = openai_api_key
+else:
+    logger.error("OPENAI_API_KEY is not set. Chat functionality will not work.")
 
 # Create FastAPI app
 app = FastAPI(
